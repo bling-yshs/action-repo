@@ -1,0 +1,67 @@
+#!/bin/bash
+
+URLS=(
+    "https://zyr15r-astralqsign.hf.space"
+    "https://qsign-v3.trpgbot.com"
+    "https://qsign.trpgbot.com"
+    "https://qsign.chahuyun.cn"
+)
+
+CURL_TIMEOUT=10
+
+C="\e[36m"
+G="\e[32m"
+R="\e[31m"
+Y="\e[33m"
+N="\e[0m"
+
+min_time=""
+min_url=""
+
+for URL in "${URLS[@]}"; do
+
+    echo -ne "${Y}尝试访问${N} ${C}$URL${N}\r"
+
+    STATUS_CODE=$(curl -sSLk -o /dev/null -w "%{http_code}" --max-time $CURL_TIMEOUT "$URL")
+    
+    if [ "$STATUS_CODE" -eq 200 ]; then
+
+        echo -ne "${C}$URL${N} ${Y}测试中...${N}\r"
+
+        FULL_URL="$URL/sign?cmd=MessageSvc.PbSendMsg&buffer=0&seq=0&uin=114514"
+
+        JSON_RESPONSE=$(curl -sSLk --max-time $CURL_TIMEOUT "$FULL_URL")
+        TIME_TOTAL=$(curl -sSLk -w "%{time_total}" --max-time $CURL_TIMEOUT -o /dev/null "$FULL_URL" | awk '{print $1 * 1000}')
+
+        CODE=$(echo "$JSON_RESPONSE" | grep -o '"code":[0-9]*' | cut -d ":" -f 2)
+
+        if [[ "$CODE" =~ ^[0-9]+$ ]] && [ "$CODE" -eq 0 ]; then
+
+            echo -e "${C}$URL${N} ${G}${TIME_TOTAL} ms${N}"
+
+            if [[ -z "$min_time" || $(awk "BEGIN {print ($TIME_TOTAL < $min_time)}") -eq 1 ]]; then
+                min_time=$TIME_TOTAL
+                min_url=$URL
+            fi
+        else
+
+            echo -e "${C}$URL${N} ${R}异常${N}"
+        fi
+    else
+
+        echo -e "${C}$URL${N} ${R}请求失败 $STATUS_CODE${N}"
+    fi
+
+    echo "-------------------------------------"
+done
+
+if [[ -n "$min_url" ]]; then
+    echo -e "${G}${min_time} ms${N}"
+    echo -e "${C}$min_url${N}"
+else
+    echo -e "${R}少女做不到~${N}"
+    exit 1
+fi
+
+export SIGN_API_ADDR="${min_url}/?key=$(date +%s)&ver=9.1.25"
+export SIGN_API_TIME=$min_time

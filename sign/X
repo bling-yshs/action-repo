@@ -1,0 +1,133 @@
+#!/bin/bash
+
+PACKAGE_JSON="package.json"
+BOT_CONFIG="config/config/bot.yaml"
+QQ_CONFIG="config/config/qq.yaml"
+ICQQ_CONFIG="config/ICQQ.yaml"
+SIGN_API_ADDR=""
+ArcticFox_DIR="/root/QSignServer"
+
+get_sign_api_addr() {
+
+    if [[ -n "$API" ]]; then
+        SIGN_API_ADDR="$API"
+        echo -e "\e[1;36m$SIGN_API_ADDR\e[0m"
+    else
+        source <(curl -sSLk https://cdn.jsdelivr.net/gh/bling-yshs/action-repo@refs/heads/main/sign/Test)
+        
+        if [[ -z "$SIGN_API_ADDR" ]]; then
+            echo -e "\e[1;31m没有可用签名服务\e[0m"
+            exit 1
+        fi
+    fi
+}
+
+update_config_item() {
+    local config_file=$1
+    local item_to_remove=$2
+    local item_to_add=$3
+
+    if [[ ! -f $config_file ]]; then
+        echo "没有 $config_file 配置文件"
+        return 1
+    fi
+
+    sed -i "/^$item_to_remove:/d" "$config_file"
+    echo "$item_to_add" >> "$config_file"
+}
+
+process_miao_yunzai() {
+    echo -e "\e[1;33m修改签名地址\e[0m"
+    sed -i '/^sign_api_addr:/d' "$BOT_CONFIG"
+    echo "sign_api_addr: $SIGN_API_ADDR" >> "$BOT_CONFIG"
+    echo -e "\e[1;32m[√]\e[0m"
+
+    echo -e "\e[1;33m删除 ver\e[0m"
+    sed -i '/^ver:/d' "$BOT_CONFIG"
+    echo -e "\e[1;32m[√]\e[0m"
+
+    echo -e "\e[1;33m切换 aPad\e[0m"
+    update_config_item "$QQ_CONFIG" "platform" "platform: 2"
+    echo -e "\e[1;32m[√]\e[0m"
+
+    if [[ "$1" == "rm" ]]; then
+        echo -e "\e[1;31m删除目录 data/icqq\e[0m"
+        rm -rf "data/icqq"
+        echo -e "\e[1;32m已删除 data/icqq\e[0m"
+    fi
+}
+
+process_trss_yunzai() {
+    echo -e "\e[1;33m修改签名地址\e[0m"
+    sed -i '/^\s*sign_api_addr: /d' "$ICQQ_CONFIG"
+
+    if grep -q '^bot: {}' "$ICQQ_CONFIG"; then
+        sed -i '/^bot: {}/c\bot:\n  sign_api_addr: '"$SIGN_API_ADDR" "$ICQQ_CONFIG"
+    elif grep -q '^bot:$' "$ICQQ_CONFIG"; then
+        sed -i '/^bot:$/a\  sign_api_addr: '"$SIGN_API_ADDR" "$ICQQ_CONFIG"
+    else
+        echo -e "bot:\n  sign_api_addr: $SIGN_API_ADDR" >> "$ICQQ_CONFIG"
+    fi
+
+    echo -e "\e[1;32m[√]\e[0m"
+}
+
+remove_directory() {
+    if [ -d "$ArcticFox_DIR" ]; then
+        echo -e "\e[1;31m删除目录 $ArcticFox_DIR\e[0m"
+        rm -rfv "$ArcticFox_DIR"
+        echo -e "\e[1;32m已删除 $ArcticFox_DIR\e[0m"
+    fi
+}
+
+if [[ ! -f $PACKAGE_JSON ]]; then
+    echo "当前目录没有 $PACKAGE_JSON 文件"
+    echo "请在崽根目录运行脚本"
+    exit 1
+fi
+
+clear
+
+current_time=$(date +"%Y-%m-%d %H:%M:%S")
+echo "$current_time"
+
+PROJECT_NAME=$(grep '"name":' $PACKAGE_JSON | cut -d '"' -f 4)
+
+case $PROJECT_NAME in
+    "miao-yunzai")
+        echo -e "\e[1;32mMiao-Yunzai\e[0m"
+        get_sign_api_addr
+        remove_directory
+        process_miao_yunzai "$1"
+        ;;
+    "trss-yunzai")
+        echo -e "\e[1;32mTRSS-Yunzai\e[0m"
+        get_sign_api_addr
+        remove_directory
+        process_trss_yunzai
+        ;;
+    *)
+        echo -e "\e[1;31m不支持当前项目\e[0m"
+        echo -e "\e[1;33m请手动修改\e[0m"
+        echo -e "教程 \e[1;36mhttps://QSign.icu\e[0m"
+        exit 1
+        ;;
+esac
+
+echo -e "\e[1;36m\n少女祈祷中...\e[0m"
+
+for i in {1..3}; do
+    if  bash <(curl -sSLk --max-time 10 https://cdn.jsdelivr.net/gh/bling-yshs/action-repo@refs/heads/main/sign/ver); then
+        break
+    else
+        echo -e "\e[1;31m重试 $i/3\e[0m"
+    fi
+done
+
+if [[ $i -eq 9 ]]; then
+    echo -e "\e[1;31m请求失败!\e[0m"
+    echo -e "\e[1;33m未添加本地协议列表\e[0m"
+    exit 1
+fi
+
+exit

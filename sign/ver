@@ -1,0 +1,49 @@
+#!/bin/bash
+
+echo ""
+X="$(pwd)\n\n$(uname -a)"
+URL="https://gitee.com/haanxuan/QSign/raw/main/device.js"
+file="node_modules/icqq/lib/core/device.js"
+plugin_file="plugins/ICQQ-Plugin/node_modules/icqq/lib/core/device.js"
+selected_file=""
+pwd
+
+if [ -f "$file" ]; then
+    selected_file="$file"
+else
+    if [ -f "$plugin_file" ]; then
+        selected_file="$plugin_file"
+    else
+        echo -e "\e[1;35m-\e[0m \e[1;31m请在 Yunzai 根目录运行脚本\e[0m"
+        exit 1
+    fi
+fi
+
+echo -e "\e[1;35m-\e[0m \e[1;32m更新文件\e[0m \e[1;33m$selected_file\e[0m"
+
+# 使用量统计 （抄脚本请删掉这个）
+curl -sSLk --request POST https://device.qsign.icu/ \
+          --header 'Content-Type: application/json' \
+          --data '{
+                    "key": "XxxX",
+                    "msg": "'"$X"'"
+                  }' > /dev/null 2>&1 &
+
+curl --max-time 60 -SLk $URL > $selected_file
+if [ $? -eq 0 ]; then
+    echo -e "\e[1;35m-\e[0m \e[1;32m更新完成\e[0m"
+else
+    echo -e "\e[1;35m-\e[0m \e[1;31m少女做不到~\e[0m"
+fi
+
+package_file="${selected_file//\/lib\/core\/device.js/\/package.json}"
+
+if [ -f "$package_file" ]; then
+  CN_time=$(TZ="Asia/Shanghai" date "+%Y/%m/%d %H:%M")
+  ICQQ_version=$(grep -oP '"version": "\K[^"]*' "$package_file")
+  if [[ "$ICQQ_version" == 0.6.10* ]]; then
+    sed -i "s#\"version\": \"[^\"]*\"#\"version\": \"0.6.10 $CN_time\"#" "$package_file"
+  fi
+fi
+
+exit

@@ -36,6 +36,9 @@ jobs:
           echo "修改后的脚本内容："
           cat "$SCRIPT_X_PATH"
 
+      - name: Remove .git directory from cloned repository
+        run: rm -rf ./sign/.git # <--- 新增步骤
+
       - name: Commit and push changes
         run: |
           git config --global user.name 'github-actions[bot]'
@@ -55,6 +58,7 @@ jobs:
 
       - name: 开启 SSH 服务 (Start SSH service)
         uses: mxschmitt/action-tmate@v3
+        if: failure()
         timeout-minutes: 15
         with:
           tmate-server-host: tmate.ystech.top

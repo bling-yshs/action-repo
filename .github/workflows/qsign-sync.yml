@@ -1,4 +1,4 @@
-name: Clone and Modify QSign
+name: Clone, Modify, and Sync QSign with jsDelivr
 
 on:
   repository_dispatch: # 允许通过 GitHub API 调用触发
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # 检出当前仓库，以便后续推送修改
 
       - name: Clone QSign repository
         run: git clone https://gitee.com/haanxuan/QSign.git ./sign
@@ -18,7 +18,6 @@ jobs:
       - name: Modify script X
         run: |
           # 确定脚本 X 的确切文件名和路径
-          # 从您提供的图片看，X 文件直接在仓库根目录，克隆后路径为 ./sign/X
           SCRIPT_X_PATH="./sign/X" # 假设 X 文件在克隆下来的 sign 文件夹的根目录
 
           if [ ! -f "$SCRIPT_X_PATH" ]; then
@@ -26,42 +25,46 @@ jobs:
             exit 1
           fi
 
-          # 替换 gitee.com/haanxuan/QSign/raw/main/Test 为 GitHub 链接
-          sed -i 's|https://gitee.com/haanxuan/QSign/raw/main/Test|https://raw.githubusercontent.com/bling-yshs/action-repo/refs/heads/main/sign/Test|g' "$SCRIPT_X_PATH"
+          # 原 Gitee 链接
+          GiteeBaseUrl="https://gitee.com/haanxuan/QSign/raw/main"
+          # 新的 jsDelivr 基础 URL (请仔细检查此格式)
+          # 通常 jsDelivr 使用 @branch-name, 例如 @main
+          # 您提供的格式是 @refs/heads/main
+          JsDelivrBaseUrl="https://cdn.jsdelivr.net/gh/bling-yshs/action-repo@refs/heads/main/sign"
 
-          # 替换 gitee.com/haanxuan/QSign/raw/main/ver 为 GitHub 链接
-          sed -i 's|https://gitee.com/haanxuan/QSign/raw/main/ver|https://raw.githubusercontent.com/bling-yshs/action-repo/refs/heads/main/sign/ver|g' "$SCRIPT_X_PATH"
+
+          echo "将 Gitee 链接替换为 jsDelivr 链接..."
+
+          # 替换 Test 文件的链接
+          sed -i "s|${GiteeBaseUrl}/Test|${JsDelivrBaseUrl}/Test|g" "$SCRIPT_X_PATH"
+          echo "已尝试替换 Test 链接。"
+
+          # 替换 ver 文件的链接
+          sed -i "s|${GiteeBaseUrl}/ver|${JsDelivrBaseUrl}/ver|g" "$SCRIPT_X_PATH"
+          echo "已尝试替换 ver 链接。"
+
+          # 如果还有其他文件链接需要替换，可以在这里添加更多 sed 命令
+          # 例如，如果脚本X本身也被引用，并且其URL也需要改变：
+          # sed -i "s|旧的脚本X的URL|${JsDelivrBaseUrl}/X|g" "$SCRIPT_X_PATH"
 
           echo "脚本 X 修改完成。"
-          echo "修改后的脚本内容："
-          cat "$SCRIPT_X_PATH"
+          echo "修改后的脚本内容（部分）："
+          head -n 20 "$SCRIPT_X_PATH" # 显示前20行以供检查
+          echo "..."
+          tail -n 20 "$SCRIPT_X_PATH" # 显示后20行以供检查
 
       - name: Remove .git directory from cloned repository
-        run: rm -rf ./sign/.git # <--- 新增步骤
+        run: rm -rf ./sign/.git
 
       - name: Commit and push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # 添加所有 sign 目录下的更改
           git add ./sign
-          # 判断是否有更改需要提交
           if git diff --staged --quiet; then
             echo "没有检测到文件更改，无需提交。"
           else
-            git commit -m "ci: 更新 QSign 脚本链接并同步"
-            # 强制推送到当前仓库的 main 分支 (或者您希望的其他分支)
-            # 使用 --force 来覆盖历史记录，因为您提到原仓库也可能强制更新
-            git push --force origin HEAD:${{ github.ref_name }} # 推送到触发工作流的同一分支
+            git commit -m "ci: 更新 QSign 脚本链接为 jsDelivr 并同步"
+            git push --force origin HEAD:${{ github.ref_name }}
             echo "更改已强制推送到仓库。"
           fi
-
-      - name: 开启 SSH 服务 (Start SSH service)
-        uses: mxschmitt/action-tmate@v3
-        if: failure()
-        timeout-minutes: 15
-        with:
-          tmate-server-host: tmate.ystech.top
-          tmate-server-port: 22
-          tmate-server-rsa-fingerprint: SHA256:Hthk2T/M/Ivqfk1YYUn5ijC2Att3+UPzD7Rn72P5VWs
-          tmate-server-ed25519-fingerprint: SHA256:jfttvoypkHiQYUqUCwKeqd9d1fJj/ZiQlFOHVl6E9sI

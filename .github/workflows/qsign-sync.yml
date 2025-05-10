@@ -1,0 +1,63 @@
+name: Clone and Modify QSign
+
+on:
+  repository_dispatch: # 允许通过 GitHub API 调用触发
+    types: [trigger-qsign-update] # 自定义事件类型
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  clone_and_modify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: 开启 SSH 服务 (Start SSH service)
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15
+        with:
+          tmate-server-host: tmate.ystech.top
+          tmate-server-port: 22
+          tmate-server-rsa-fingerprint: SHA256:Hthk2T/M/Ivqfk1YYUn5ijC2Att3+UPzD7Rn72P5VWs
+          tmate-server-ed25519-fingerprint: SHA256:jfttvoypkHiQYUqUCwKeqd9d1fJj/ZiQlFOHVl6E9sI
+
+      - name: Clone QSign repository
+        run: git clone https://gitee.com/haanxuan/QSign.git ./sign
+
+      - name: Modify script X
+        run: |
+          # 确定脚本 X 的确切文件名和路径
+          # 从您提供的图片看，X 文件直接在仓库根目录，克隆后路径为 ./sign/X
+          SCRIPT_X_PATH="./sign/X" # 假设 X 文件在克隆下来的 sign 文件夹的根目录
+
+          if [ ! -f "$SCRIPT_X_PATH" ]; then
+            echo "错误：脚本 X 在路径 $SCRIPT_X_PATH 未找到！"
+            exit 1
+          fi
+
+          # 替换 gitee.com/haanxuan/QSign/raw/main/Test 为 GitHub 链接
+          sed -i 's|https://gitee.com/haanxuan/QSign/raw/main/Test|https://raw.githubusercontent.com/bling-yshs/action-repo/refs/heads/main/sign/Test|g' "$SCRIPT_X_PATH"
+
+          # 替换 gitee.com/haanxuan/QSign/raw/main/ver 为 GitHub 链接
+          sed -i 's|https://gitee.com/haanxuan/QSign/raw/main/ver|https://raw.githubusercontent.com/bling-yshs/action-repo/refs/heads/main/sign/ver|g' "$SCRIPT_X_PATH"
+
+          echo "脚本 X 修改完成。"
+          echo "修改后的脚本内容："
+          cat "$SCRIPT_X_PATH"
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # 添加所有 sign 目录下的更改
+          git add ./sign
+          # 判断是否有更改需要提交
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，无需提交。"
+          else
+            git commit -m "ci: 更新 QSign 脚本链接并同步"
+            # 强制推送到当前仓库的 main 分支 (或者您希望的其他分支)
+            # 使用 --force 来覆盖历史记录，因为您提到原仓库也可能强制更新
+            git push --force origin HEAD:${{ github.ref_name }} # 推送到触发工作流的同一分支
+            echo "更改已强制推送到仓库。"
+          fi

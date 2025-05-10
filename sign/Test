@@ -4,7 +4,6 @@ URLS=(
     "https://zyr15r-astralqsign.hf.space"
     "https://qsign-v3.trpgbot.com"
     "https://qsign.trpgbot.com"
-    "https://qsign.chahuyun.cn"
 )
 
 CURL_TIMEOUT=10

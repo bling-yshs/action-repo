@@ -12,6 +12,9 @@ jobs:
       - name: Checkout current repository
         uses: actions/checkout@v4 # 检出当前仓库，以便后续推送修改
 
+      - name: delete sign dir
+        run: rm -rf ./sign
+
       - name: Clone QSign repository
         run: git clone https://gitee.com/haanxuan/QSign.git ./sign
 
